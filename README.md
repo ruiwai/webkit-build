@@ -12,6 +12,11 @@ Apple Silicon native binaries are not included. Products are unsigned developmen
 builds, not notarized applications. A deployment-target check is not a runtime
 compatibility test: execution on Monterey must be verified separately.
 
+The build sets `ENABLE_THREADED_ANIMATION_RESOLUTION=0`: this GTK release tag
+enables the feature on Cocoa but calls the absent
+`KeyframeEffect::threadedAnimationResolutionEnabled()` method. The upstream
+source is otherwise unchanged; this flag disables that incomplete feature.
+
 ## Run and download with `gh`
 
 ```sh

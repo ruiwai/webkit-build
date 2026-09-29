@@ -54,6 +54,7 @@ jobs:
             echo 'Source tag: webkitgtk-2.40.5'
             echo "Source commit: $WEBKIT_REVISION"
             echo 'Port: native macOS; architecture: x86_64; deployment target: 12.0'
+            echo 'Compatibility flag: ENABLE_THREADED_ANIMATION_RESOLUTION=0'
             echo 'Unsigned development build; not a system WebKit replacement.'
             echo 'Monterey runtime compatibility has not been tested.'
             sw_vers
@@ -80,6 +81,7 @@ jobs:
             MACOSX_DEPLOYMENT_TARGET=12.0 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            "GCC_PREPROCESSOR_DEFINITIONS=\$(inherited) ENABLE_THREADED_ANIMATION_RESOLUTION=0" \
             WK_LTO_MODE=none \
             build 2>&1 | tee "$GITHUB_WORKSPACE/logs/build.log"
 
