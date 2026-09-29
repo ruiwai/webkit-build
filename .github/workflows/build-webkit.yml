@@ -55,6 +55,7 @@ jobs:
             echo "Source commit: $WEBKIT_REVISION"
             echo 'Port: native macOS; architecture: x86_64; deployment target: 12.0'
             echo 'Compatibility flag: ENABLE_THREADED_ANIMATION_RESOLUTION=0'
+            echo 'Debug information: disabled; packaged binaries stripped with strip -S; dSYMs omitted.'
             echo 'Unsigned development build; not a system WebKit replacement.'
             echo 'Monterey runtime compatibility has not been tested.'
             sw_vers
@@ -90,6 +91,8 @@ jobs:
             MACOSX_DEPLOYMENT_TARGET=12.0 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            GCC_GENERATE_DEBUGGING_SYMBOLS=NO DEBUG_INFORMATION_FORMAT=dwarf \
+            COPY_PHASE_STRIP=YES \
             "GCC_PREPROCESSOR_DEFINITIONS=\$(inherited) ENABLE_THREADED_ANIMATION_RESOLUTION=0" \
             WK_LTO_MODE=none \
             build 2>&1 | tee "$GITHUB_WORKSPACE/logs/build.log"
@@ -108,8 +111,16 @@ jobs:
           done
           cp logs/build-info.txt "$products/BUILD-INFO.txt"
           cp logs/cocoa-compatibility.patch "$products/COCOA-COMPATIBILITY.patch"
+          # Also remove debug symbols from copied/prebuilt Mach-O files and archives.
+          # -S preserves ordinary symbols, including exports needed at runtime.
+          find "$products" -name '*.dSYM' -prune -o -type f -print0 |
+            while IFS= read -r -d '' binary; do
+              case "$(file -b "$binary")" in
+                *Mach-O*|*'ar archive'*) xcrun strip -S "$binary" ;;
+              esac
+            done
           # tar preserves framework symlinks and executable permissions.
-          tar -czf dist/webkit-2.40.5-macos-monterey-x86_64.tar.gz \
+          tar --exclude='*.dSYM' -czf dist/webkit-2.40.5-macos-monterey-x86_64.tar.gz \
             -C "$GITHUB_WORKSPACE/webkit/WebKitBuild" Release
           (cd dist && shasum -a 256 ./*.tar.gz > SHA256SUMS)
 

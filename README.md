@@ -12,6 +12,12 @@ Apple Silicon native binaries are not included. Products are unsigned developmen
 builds, not notarized applications. A deployment-target check is not a runtime
 compatibility test: execution on Monterey must be verified separately.
 
+Debug information generation is disabled (`GCC_GENERATE_DEBUGGING_SYMBOLS=NO`,
+`DEBUG_INFORMATION_FORMAT=dwarf` to avoid dSYM generation). Packaging additionally
+strips debug symbols from Mach-O binaries and static archives with `strip -S`
+and excludes any dSYM bundles. Runtime/export symbols and Release optimization
+are preserved; source-level debugging and crash symbolication are unavailable.
+
 The build sets `ENABLE_THREADED_ANIMATION_RESOLUTION=0`: this GTK release tag
 enables the feature on Cocoa but calls the absent
 `KeyframeEffect::threadedAnimationResolutionEnabled()` method.
