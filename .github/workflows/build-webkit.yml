@@ -34,6 +34,16 @@ jobs:
             WebKitLibraries
             WebKit.xcworkspace
 
+      - name: Select system Ruby for historical build scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Ruby 3.2+ removed File.exists?, used by this release's header checker.
+          /usr/bin/ruby -e 'abort "Ruby lacks File.exists?" unless File.respond_to?(:exists?)'
+          mkdir -p "$RUNNER_TEMP/webkit-bin"
+          ln -s /usr/bin/ruby "$RUNNER_TEMP/webkit-bin/ruby"
+          echo "$RUNNER_TEMP/webkit-bin" >> "$GITHUB_PATH"
+
       - name: Record source and toolchain
         shell: bash
         run: |
@@ -49,6 +59,7 @@ jobs:
             sw_vers
             xcodebuild -version
             xcrun --sdk macosx --show-sdk-version
+            ruby --version
             df -h .
           } | tee logs/build-info.txt
 

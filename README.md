@@ -5,7 +5,8 @@ Manually dispatched GitHub Actions build of the **native macOS port** at
 2.40.5 is a WebKitGTK release number, not an Apple WebKit framework version.
 This does not build GTK for macOS or replace Safari/system WebKit.
 
-The workflow uses the hosted `macos-14` runner with Xcode 15.0.1, targets
+The workflow uses the hosted `macos-14` runner with Xcode 15.0.1 and system Ruby
+(the historical scripts require `File.exists?`, removed in Ruby 3.2+), targets
 macOS **12.0 (Monterey)**, and builds **x86_64** frameworks and MiniBrowser.
 Apple Silicon native binaries are not included. Products are unsigned development
 builds, not notarized applications. A deployment-target check is not a runtime
