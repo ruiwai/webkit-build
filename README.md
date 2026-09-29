@@ -14,8 +14,12 @@ compatibility test: execution on Monterey must be verified separately.
 
 The build sets `ENABLE_THREADED_ANIMATION_RESOLUTION=0`: this GTK release tag
 enables the feature on Cocoa but calls the absent
-`KeyframeEffect::threadedAnimationResolutionEnabled()` method. The upstream
-source is otherwise unchanged; this flag disables that incomplete feature.
+`KeyframeEffect::threadedAnimationResolutionEnabled()` method.
+`scripts/patch-cocoa.py` also removes stale, duplicate scrollbar updates from
+two remote scrolling nodes: the base classes already perform those updates
+through their delegates. The patch checks both source hashes before editing.
+The exact source diff and its checksum are included in the products and logs.
+These are compatibility-modified builds, not pristine upstream binaries.
 
 ## Run and download with `gh`
 

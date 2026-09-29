@@ -64,6 +64,15 @@ jobs:
             df -h .
           } | tee logs/build-info.txt
 
+      - name: Apply checked Cocoa compatibility patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/patch-cocoa.py webkit
+          git -C webkit diff --check
+          git -C webkit diff > logs/cocoa-compatibility.patch
+          shasum -a 256 logs/cocoa-compatibility.patch >> logs/build-info.txt
+
       - name: Build frameworks and MiniBrowser
         shell: bash
         run: |
@@ -98,6 +107,7 @@ jobs:
             test "$minimum" = '12.0'
           done
           cp logs/build-info.txt "$products/BUILD-INFO.txt"
+          cp logs/cocoa-compatibility.patch "$products/COCOA-COMPATIBILITY.patch"
           # tar preserves framework symlinks and executable permissions.
           tar -czf dist/webkit-2.40.5-macos-monterey-x86_64.tar.gz \
             -C "$GITHUB_WORKSPACE/webkit/WebKitBuild" Release
