@@ -1,0 +1,109 @@
+name: WebKit 2.40.5 for Monterey
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 350
+    env:
+      WEBKIT_REVISION: 817d67af2ed9204a3a3be6750a06ac5425c9fe00
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
+      DEVELOPER_DIR: /Applications/Xcode_15.0.1.app/Contents/Developer
+    steps:
+      - name: Checkout build instructions
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout WebKitGTK 2.40.5 (including native macOS port)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: WebKit/WebKit
+          ref: ${{ env.WEBKIT_REVISION }}
+          path: webkit
+          persist-credentials: false
+          sparse-checkout: |
+            Source
+            Tools
+            Configurations
+            WebKitLibraries
+            WebKit.xcworkspace
+
+      - name: Record source and toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p logs dist
+          test "$(git -C webkit rev-parse HEAD)" = "$WEBKIT_REVISION"
+          {
+            echo 'Source tag: webkitgtk-2.40.5'
+            echo "Source commit: $WEBKIT_REVISION"
+            echo 'Port: native macOS; architecture: x86_64; deployment target: 12.0'
+            echo 'Unsigned development build; not a system WebKit replacement.'
+            echo 'Monterey runtime compatibility has not been tested.'
+            sw_vers
+            xcodebuild -version
+            xcrun --sdk macosx --show-sdk-version
+            df -h .
+          } | tee logs/build-info.txt
+
+      - name: Build frameworks and MiniBrowser
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd webkit
+          xcodebuild \
+            -workspace WebKit.xcworkspace \
+            -scheme 'Everything up to MiniBrowser' \
+            -configuration Release \
+            -sdk macosx \
+            -jobs 3 \
+            SYMROOT="$GITHUB_WORKSPACE/webkit/WebKitBuild" \
+            OBJROOT="$GITHUB_WORKSPACE/webkit/WebKitBuild/Intermediates" \
+            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            MACOSX_DEPLOYMENT_TARGET=12.0 \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            WK_LTO_MODE=none \
+            build 2>&1 | tee "$GITHUB_WORKSPACE/logs/build.log"
+
+      - name: Verify and package products
+        shell: bash
+        run: |
+          set -euo pipefail
+          products="$GITHUB_WORKSPACE/webkit/WebKitBuild/Release"
+          for binary in JavaScriptCore.framework/JavaScriptCore WebCore.framework/WebCore WebKit.framework/WebKit MiniBrowser.app/Contents/MacOS/MiniBrowser; do
+            test -f "$products/$binary"
+            xcrun lipo -verify_arch x86_64 "$products/$binary"
+            xcrun vtool -show-build "$products/$binary" | tee -a logs/macho-build-versions.txt
+            minimum=$(xcrun vtool -show-build "$products/$binary" | awk '$1 == "minos" {print $2}')
+            test "$minimum" = '12.0'
+          done
+          cp logs/build-info.txt "$products/BUILD-INFO.txt"
+          # tar preserves framework symlinks and executable permissions.
+          tar -czf dist/webkit-2.40.5-macos-monterey-x86_64.tar.gz \
+            -C "$GITHUB_WORKSPACE/webkit/WebKitBuild" Release
+          (cd dist && shasum -a 256 ./*.tar.gz > SHA256SUMS)
+
+      - name: Upload WebKit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: webkit-2.40.5-macos-monterey-x86_64
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: webkit-build-logs-${{ github.run_attempt }}
+          path: logs/
+          if-no-files-found: warn
+          retention-days: 14
